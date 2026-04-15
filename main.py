@@ -43,10 +43,12 @@ ADMIN_ID = 7106262808 # your Telegram ID
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN не найден. Проверь файл .env")
 
+from pathlib import Path
+
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "db.sqlite3"
+DB_PATH = Path("/app/data/db.sqlite3")
 IMAGES_DIR = BASE_DIR / "images"
-CITY_CACHE_PATH = BASE_DIR / "ru_kz_city_whitelist.json"
+CITY_CACHE_PATH = Path("/app/data/ru_kz_city_whitelist.json")
 
 BYBIT_P2P_URLS = [
     "https://www.bybit.com/en/fiat/trade/otc/sell/USDT/RUB?actionType=0&fiat=RUB",
