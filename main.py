@@ -38,7 +38,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = 612761675  # your Telegram ID
+ADMIN_ID = 7106262808 # your Telegram ID
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN не найден. Проверь файл .env")
