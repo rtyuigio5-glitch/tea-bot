@@ -152,7 +152,7 @@ FALLBACK_CITIES = {
     # Kazakhstan
     "алматы", "астана", "шымкент", "актобе", "караганда", "тараз", "павлодар", "усть-каменогорск", "семей",
     "костанай", "кызылорда", "уральск", "петропавловск", "актау", "темиртау", "туркестан", "атырау", "талдыкорган",
-    "жезказган", "кентау", "балхаш", "кокшетау", "сатпаев", "экибастуз", "рылб?",
+    "жезказган", "кентау", "балхаш", "кокшетау", "сатпаев", "экибастуз", 
 }
 
 
@@ -287,6 +287,7 @@ if cur.fetchone()["cnt"] == 0:
 conn.commit()
 
 
+
 # =========================
 # CITY WHITELIST
 # =========================
@@ -295,61 +296,22 @@ conn.commit()
 def normalize_city_name(value: str) -> str:
     value = unicodedata.normalize("NFKC", value).casefold().replace("ё", "е")
     value = re.sub(r"[\s\u00A0]+", " ", value).strip()
+    # common user variants
+    prefixes = ("г. ", "город ", "г ")
+    for prefix in prefixes:
+        if value.startswith(prefix):
+            value = value[len(prefix):].strip()
+    suffixes = (" г.", " город")
+    for suffix in suffixes:
+        if value.endswith(suffix):
+            value = value[: -len(suffix)].strip()
     return value
 
 
-def load_city_whitelist() -> set[str]:
-    if CITY_CACHE_PATH.exists():
-        try:
-            cached = json.loads(CITY_CACHE_PATH.read_text(encoding="utf-8"))
-            if isinstance(cached, list) and cached:
-                return set(normalize_city_name(x) for x in cached if isinstance(x, str))
-        except Exception:
-            pass
-
-    cities: set[str] = set(normalize_city_name(x) for x in FALLBACK_CITIES)
-
-    # Try to enrich from GeoNames; if unavailable, fallback stays in place.
-    headers = {"User-Agent": "Mozilla/5.0", "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"}
-    for country_code, url in GEONAMES_COUNTRY_URLS.items():
-        try:
-            req = Request(url, headers=headers)
-            with urlopen(req, timeout=25) as response:
-                with zipfile.ZipFile(io.BytesIO(response.read())) as zf:
-                    txt_name = next((n for n in zf.namelist() if n.lower().endswith('.txt')), None)
-                    if not txt_name:
-                        continue
-                    raw_text = zf.read(txt_name).decode("utf-8", errors="ignore")
-
-            for line in raw_text.splitlines():
-                cols = line.split("\t")
-                if len(cols) < 7:
-                    continue
-                # feature class P = populated place
-                if cols[6] != "P":
-                    continue
-                for candidate in (cols[1], cols[2]):
-                    candidate = normalize_city_name(candidate)
-                    if candidate:
-                        cities.add(candidate)
-                if len(cols) > 3 and cols[3].strip():
-                    for alias in cols[3].split(","):
-                        alias = normalize_city_name(alias)
-                        if alias:
-                            cities.add(alias)
-        except Exception as exc:
-            logging.warning("GeoNames load failed for %s: %s", country_code, exc)
-
-    # Save cache for next starts
-    try:
-        CITY_CACHE_PATH.write_text(json.dumps(sorted(cities), ensure_ascii=False), encoding="utf-8")
-    except Exception as exc:
-        logging.warning("Couldn't save city cache: %s", exc)
-
-    return cities
-
-
-VALID_CITIES = load_city_whitelist()
+# Local, stable whitelist. This avoids startup failures on Railway and still
+# keeps the validation strict enough for the common city names the shop uses.
+# Normalize everything once and compare against normalized user input.
+VALID_CITIES = {normalize_city_name(city) for city in FALLBACK_CITIES}
 
 
 def is_valid_city(value: str) -> bool:
