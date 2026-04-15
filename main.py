@@ -81,7 +81,7 @@ carts: dict[int, list[dict]] = {}
 # =========================
 
 SETTINGS_DEFAULTS = {
-    "start_text": "<b>☕ Добро пожаловать в чайный магазин</b>\n\nСначала пройди капчу.",
+    "start_text": "<b>💎 Добро пожаловать в лучший шоп России и Казахстана!</b>\n\nСначала пройди капчу.",
     "registration_text": "<b>✅ Капча пройдена</b>\n\nТеперь введи свой город вручную.",
     "account_text": "<b>👤 Аккаунт</b>\n\n🌍 Город: <code>{city}</code>\n💰 Баланс: <b>{balance_rub:.2f} ₽</b> (~<b>{balance_usdt:.2f} USDT</b>)\n📉 Курс: <code>1 USDT ≈ {rate:.2f} ₽</code>\n🏷 Промокод: <code>{promo}</code>",
     "deposit_text": "<b>💳 Пополнение баланса</b>\n\nСначала выбери валюту, потом введи сумму в рублях.",
@@ -1357,7 +1357,7 @@ async def text_router(message: Message):
                 captcha_answers.pop(user_id, None)
                 waiting_for_city.add(user_id)
                 await send_media_message(message, "registration", get_setting("registration_text"))
-                await message.answer("Введи свой город вручную, например: <code>Москва</code>")
+                await message.answer("Введи свой город, например: <code>Москва</code>")
             else:
                 question, answer = generate_captcha()
                 captcha_answers[user_id] = answer
@@ -1369,7 +1369,7 @@ async def text_router(message: Message):
     if user_id in waiting_for_city:
         city = " ".join(text.split())
         if not is_valid_city(city):
-            await message.answer("Такого города нет в базе России и Казахстана. Введи существующий город.")
+            await message.answer("К сожалению, мы не работаем в вашем городе. Если хотите, можете изменить его прямо сейчас, написав его повторно.")
             return
         set_user_city(user_id, city)
         waiting_for_city.discard(user_id)
@@ -1549,7 +1549,7 @@ async def start_deposit(call: CallbackQuery):
     currency = call.data.split(":", 1)[1]
     user_waiting_for_deposit_amount[call.from_user.id] = currency
     await call.message.answer(
-        f"<b>💳 Пополнение через {currency}</b>\n\nТеперь отправь сумму в рублях одним сообщением.\nНапример: <code>1500</code>\n\nПосле этого бот выдаст адрес и создаст заявку админу.",
+        f"<b>💳 Пополнение через {currency}</b>\n\nТеперь отправь сумму в рублях одним сообщением.\nНапример: <code>2500</code>\n\nПосле этого бот выдаст ваш личный адрес для пополнения.",
         reply_markup=main_menu(),
     )
     await call.answer()
