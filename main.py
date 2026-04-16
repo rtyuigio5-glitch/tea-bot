@@ -118,6 +118,7 @@ SETTINGS_DEFAULTS = {
     "order_success_text": "<b>✅ Заказ оформлен</b>",
     "insufficient_balance_text": "<b>Недостаточно средств</b>",
     "usdt_rate_override": "",
+    "kill_switch": "0",
 }
 
 MEDIA_TITLES = {
@@ -663,6 +664,7 @@ def admin_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="💰 Пополнения", callback_data="admin:deposits")],
             [InlineKeyboardButton(text="👤 Пользователи", callback_data="admin:users")],
             [InlineKeyboardButton(text="📣 Рассылка", callback_data="admin:broadcast")],
+            [InlineKeyboardButton(text="💬 Диалоги", callback_data="admin:dialogs")],
             [InlineKeyboardButton(text="⬇️ Выгрузить базу", callback_data="admin:export_db")],
             [InlineKeyboardButton(text="☠️ Уничтожить бота", callback_data="admin:destroy")],
         ]
@@ -1040,6 +1042,33 @@ async def admin_settings(call: CallbackQuery):
         await call.answer("Нет доступа", show_alert=True)
         return
     await call.message.answer("<b>⚙️ Настройки</b>", reply_markup=settings_keyboard())
+    await call.answer()
+
+
+@ROUTER.callback_query(F.data.startswith("setting:"))
+async def setting_edit(call: CallbackQuery):
+    if call.from_user.id != ADMIN_ID:
+        await call.answer("Нет доступа", show_alert=True)
+        return
+    key = call.data.split(":", 1)[1]
+    admin_state[call.from_user.id] = {"mode": "set_text", "key": key}
+    await call.message.answer(
+        "Введи новый текст для <b>{}</b>.\n\nМожно использовать:\n<code>{{city}}</code> <code>{{balance_rub}}</code> <code>{{balance_usdt}}</code> <code>{{rate}}</code> <code>{{promo}}</code>".format(key),
+        reply_markup=cancel_keyboard(),
+    )
+    await call.answer()
+
+
+@ROUTER.callback_query(F.data == "rate:edit")
+async def rate_edit(call: CallbackQuery):
+    if call.from_user.id != ADMIN_ID:
+        await call.answer("Нет доступа", show_alert=True)
+        return
+    admin_state[call.from_user.id] = {"mode": "set_rate"}
+    await call.message.answer(
+        "Введи курс в рублях за 1 USDT. Или напиши <code>auto</code> для авто-режима.",
+        reply_markup=cancel_keyboard(),
+    )
     await call.answer()
 
 
@@ -1528,6 +1557,25 @@ async def dep_decline(call: CallbackQuery):
     except Exception:
         pass
     await call.message.answer(f"❌ Пополнение #{dep_id} отклонено.")
+    await call.answer()
+
+
+@ROUTER.callback_query(F.data == "admin:dialogs")
+async def admin_dialogs(call: CallbackQuery):
+    if call.from_user.id != ADMIN_ID:
+        await call.answer("Нет доступа", show_alert=True)
+        return
+    rows = db_fetchall("SELECT * FROM users ORDER BY user_id DESC LIMIT 30")
+    if not rows:
+        await call.message.answer("Пользователей пока нет.")
+        await call.answer()
+        return
+    keyboard = []
+    for u in rows:
+        label = u["username"] or u["full_name"] or f"Пользователь {u['user_id']}"
+        keyboard.append([InlineKeyboardButton(text=f"💬 {label}", callback_data=f"chat:open:{u['user_id']}")])
+    keyboard.append([InlineKeyboardButton(text="↩️ Назад", callback_data="admin:back")])
+    await call.message.answer("<b>💬 Диалоги</b>\n\nВыбери пользователя, чтобы открыть чат.", reply_markup=InlineKeyboardMarkup(inline_keyboard=keyboard))
     await call.answer()
 
 
